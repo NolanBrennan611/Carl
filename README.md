@@ -13,8 +13,12 @@ list (`/grocery`). To-dos and bill reminders arrive in later phases (see
 - `/grocery add item:oat milk quantity:2 unit:cartons`: one item. Duplicates merge (adding apples
   twice sums the quantities; nothing is silently dropped).
 - `/grocery addmany items:milk, 2 lb apples, 3 cans tomatoes`: up to 20 at once.
-- `/grocery list`: your list by aisle, with a menu to tick items off and buttons to page,
-  refresh, see purchased items, or clear them. Add `share:true` to post it for everyone.
+- `/grocery list`: posts the list for everyone, by aisle, with a menu to tick items off and
+  buttons to refresh, see purchased items, or clear them. It stays **live**: Carl updates that
+  one message after every change, so you only need to post it once (posting again replaces it).
+  Use `share:false` for a private copy that isn't kept up to date.
+- Confirmations ("Added milk", "Checked off eggs") are private and delete themselves after
+  about 10 seconds.
 - `/grocery check`, `uncheck`, `edit`, `remove`: pick the item from the suggestions or type its name.
 - `/grocery clear`: removes checked-off items after you confirm.
 
@@ -48,7 +52,7 @@ uv sync                          # install dependencies
 cp .env.example .env             # then fill in DISCORD_TOKEN (dev token), CARL_GUILD_ID,
                                  # CARL_HOUSEHOLD_ROLE_ID and CARL_DEFAULT_TIMEZONE
 uv run python -m carl check-config
-uv run python -m carl run
+uv run python -m carl run        # or, on Windows, the shortcut:  .\start -dev
 ```
 
 Then, in Discord, as a member with the `household` role:

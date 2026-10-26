@@ -11,6 +11,7 @@ from collections.abc import Awaitable, Callable
 
 import discord
 
+from carl.discord_ui import responses
 from carl.discord_ui.components import ids
 from carl.discord_ui.components.base import app_context, guard
 from carl.discord_ui.responses import respond
@@ -22,11 +23,18 @@ EXPIRED = "This confirmation expired. Run the command again."
 
 # action name -> async handler(interaction, actor, target_id) -> text shown after confirming
 ConfirmHandler = Callable[[discord.Interaction, Actor, int], Awaitable[str]]
+# optional follow-up run after the user has been answered (e.g. refresh the live list)
+AfterHandler = Callable[[discord.Interaction], Awaitable[None]]
 CONFIRM_HANDLERS: dict[str, ConfirmHandler] = {}
+CONFIRM_AFTER: dict[str, AfterHandler] = {}
 
 
-def register_confirm_handler(action: str, handler: ConfirmHandler) -> None:
+def register_confirm_handler(
+    action: str, handler: ConfirmHandler, after: AfterHandler | None = None
+) -> None:
     CONFIRM_HANDLERS[action] = handler
+    if after is not None:
+        CONFIRM_AFTER[action] = after
 
 
 def check_confirm(
@@ -105,7 +113,16 @@ class ConfirmButton(
             await respond(interaction, "That action is no longer available.")
             return
         text = await handler(interaction, actor, self.target_id)
-        await interaction.response.edit_message(content=text, embed=None, view=None)
+        # The result is a short-lived confirmation: it deletes itself after a few seconds.
+        await interaction.response.edit_message(
+            content=None,
+            embed=responses.summary_embed(text),
+            view=None,
+            delete_after=responses.BRIEF_SECONDS,
+        )
+        after = CONFIRM_AFTER.get(self.action)
+        if after is not None:
+            await after(interaction)
 
 
 def build_confirm_view(
@@ -117,15 +134,25 @@ def build_confirm_view(
     view = discord.ui.View(timeout=None)
     view.add_item(
         ConfirmButton(
-            action, target_id, user_id, expires, "yes", label=yes_label,
+            action,
+            target_id,
+            user_id,
+            expires,
+            "yes",
+            label=yes_label,
             style=discord.ButtonStyle.danger,
         )
-    )  # fmt: skip
+    )
     view.add_item(
         ConfirmButton(
-            action, target_id, user_id, expires, "no", label="Cancel",
+            action,
+            target_id,
+            user_id,
+            expires,
+            "no",
+            label="Cancel",
             style=discord.ButtonStyle.secondary,
         )
-    )  # fmt: skip
+    )
     view.stop()
     return view

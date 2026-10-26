@@ -43,6 +43,8 @@ Precedence on conflict: requirements (behavior) → reminder-system / database-d
   - Autocomplete skips the command tree's access check: call `components.base.autocomplete_actor` and return `[]` for non-members.
   - `app_commands.Range` bounds must be the same type (`Range[float, 0.01, 9999.0]`, not `9999`).
   - Reply with `responses.respond` (ephemeral, `allowed_mentions=none`) and wrap user text in `responses.safe`.
+- **Live grocery list:** any code path that changes grocery data must, *after answering the user*, call `client.live_list.refresh_after(interaction)` (it never raises). Success replies use `responses.respond_brief` (self-deleting); errors use `respond`.
+- **Database writes** go through `db.transaction()`, which queues concurrent callers; never write outside it from code that can run alongside commands.
 - **Logging:** `aiosqlite` logs SQL *values* at DEBUG; `logging_setup.quiet_noisy_loggers` keeps it at WARNING. Don't undo that.
 - **Tests must never start the real bot or read a real `.env`** (the CLI only reads `./.env` from the current directory; `tests/integration/test_cli.py` patches `_run_bot` to fail if called).
 

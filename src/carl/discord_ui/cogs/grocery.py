@@ -12,7 +12,7 @@ from discord import app_commands
 from carl.discord_ui import grocery_messages as msg
 from carl.discord_ui.components.base import autocomplete_actor
 from carl.discord_ui.components.grocery import ask_clear, render_list
-from carl.discord_ui.responses import NO_MENTIONS, respond
+from carl.discord_ui.responses import NO_MENTIONS, respond, respond_brief
 from carl.domain.grocery import COMMON_UNITS, quantity_text
 from carl.services.grocery_service import AddItemInput, EditItemInput
 
@@ -54,6 +54,18 @@ def build_grocery_group(bot: CarlBot) -> app_commands.Group:
         name="grocery", description="The shared grocery list", guild_only=True
     )
 
+    async def _make_live(
+        interaction: discord.Interaction, view_name: str, category_name: str | None
+    ) -> None:
+        """Remember the message we just posted as the live list (best effort)."""
+        try:
+            posted = await interaction.original_response()
+            await bot.live_list.replace(
+                posted.channel.id, posted.id, view=view_name, category=category_name
+            )
+        except Exception:  # noqa: BLE001 - the list itself was delivered; this is a bonus
+            log.exception("could_not_make_live_list")
+
     def item_autocomplete(view: str):
         async def autocomplete(
             interaction: discord.Interaction, current: str
@@ -93,7 +105,9 @@ def build_grocery_group(bot: CarlBot) -> app_commands.Group:
             actor,
             AddItemInput(item, quantity, unit, category.value if category else None, note),
         )
-        await respond(interaction, msg.add_reply(outcome))
+        await respond_brief(interaction, msg.add_reply(outcome))
+        if outcome.changed:
+            await bot.live_list.refresh_after(interaction)
 
     @add_cmd.autocomplete("unit")
     async def unit_autocomplete(
@@ -109,33 +123,37 @@ def build_grocery_group(bot: CarlBot) -> app_commands.Group:
     ) -> None:
         actor = interaction.extras["actor"]
         result = await bot.ctx.grocery_service.add_many(actor, items)
-        await respond(interaction, msg.addmany_reply(result))
+        text = msg.addmany_reply(result)
+        if result.of("rejected"):
+            await respond(interaction, text)  # problems stay on screen until read
+        else:
+            await respond_brief(interaction, text)
+        if result.of("added") or result.of("merged"):
+            await bot.live_list.refresh_after(interaction)
 
     # ---- list
     @group.command(name="list", description="Show the grocery list")
     @app_commands.describe(
         view="Which items to show",
         category="Only this aisle",
-        share="Post the list in this channel for everyone",
+        share="Post the list for everyone and keep it up to date (default: yes)",
     )
     @app_commands.choices(view=VIEW_CHOICES, category=CATEGORY_CHOICES)
     async def list_cmd(
         interaction: discord.Interaction,
         view: app_commands.Choice[str] | None = None,
         category: app_commands.Choice[str] | None = None,
-        share: bool = False,
+        share: bool = True,
     ) -> None:
         actor = interaction.extras["actor"]
-        embed, components = await render_list(
-            bot.ctx,
-            actor,
-            view.value if view else "needed",
-            category.value if category else None,
-            1,
-        )
+        view_name = view.value if view else "needed"
+        category_name = category.value if category else None
+        embed, components = await render_list(bot.ctx, actor, view_name, category_name, 1)
         await interaction.response.send_message(
             embed=embed, view=components, ephemeral=not share, allowed_mentions=NO_MENTIONS
         )
+        if share:
+            await _make_live(interaction, view_name, category_name)
 
     # ---- check / uncheck
     @group.command(name="check", description="Check an item off")
@@ -145,7 +163,8 @@ def build_grocery_group(bot: CarlBot) -> app_commands.Group:
         svc = bot.ctx.grocery_service
         found = await svc.resolve(actor, item, "needed")
         checked = await svc.check_one(actor, found.id)
-        await respond(interaction, msg.check_reply([checked]))
+        await respond_brief(interaction, msg.check_reply([checked]))
+        await bot.live_list.refresh_after(interaction)
 
     check_cmd.autocomplete("item")(item_autocomplete("needed"))
 
@@ -156,7 +175,8 @@ def build_grocery_group(bot: CarlBot) -> app_commands.Group:
         svc = bot.ctx.grocery_service
         found = await svc.resolve(actor, item, "purchased")
         outcome = await svc.uncheck_one(actor, found.id)
-        await respond(interaction, msg.uncheck_reply(outcome))
+        await respond_brief(interaction, msg.uncheck_reply(outcome))
+        await bot.live_list.refresh_after(interaction)
 
     uncheck_cmd.autocomplete("item")(item_autocomplete("purchased"))
 
@@ -197,7 +217,8 @@ def build_grocery_group(bot: CarlBot) -> app_commands.Group:
                 clear=frozenset({clear.value}) if clear else frozenset(),
             ),
         )
-        await respond(interaction, msg.edit_reply(updated))
+        await respond_brief(interaction, msg.edit_reply(updated))
+        await bot.live_list.refresh_after(interaction)
 
     edit_cmd.autocomplete("item")(item_autocomplete("all"))
 
@@ -209,7 +230,8 @@ def build_grocery_group(bot: CarlBot) -> app_commands.Group:
         svc = bot.ctx.grocery_service
         found = await svc.resolve(actor, item, "all")
         removed = await svc.remove(actor, found.id)
-        await respond(interaction, msg.remove_reply(removed))
+        await respond_brief(interaction, msg.remove_reply(removed))
+        await bot.live_list.refresh_after(interaction)
 
     remove_cmd.autocomplete("item")(item_autocomplete("all"))
 

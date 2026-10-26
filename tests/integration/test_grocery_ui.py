@@ -199,12 +199,23 @@ async def test_list_view_ids_are_unique_valid_and_match_a_template(svc):
             assert any(t.fullmatch(custom_id) for t in all_templates()), custom_id
 
 
-async def test_navigation_buttons_are_disabled_at_the_ends(svc):
+def nav_buttons(page):
+    return {c.kind: c for c in build_list_view(page).children if hasattr(c, "kind")}
+
+
+async def test_arrows_are_hidden_when_the_list_fits_on_one_page(svc):
     await svc.add_many(ALEX, "milk, eggs")
-    page = await svc.list_items(ALEX)
-    by_kind = {c.kind: c for c in build_list_view(page).children if hasattr(c, "kind")}
-    assert by_kind["prev"].item.disabled and by_kind["next"].item.disabled
-    assert not by_kind["ref"].item.disabled
+    buttons = nav_buttons(await svc.list_items(ALEX))
+    assert set(buttons) == {"ref", "view"}  # refresh and the purchased toggle stay
+
+
+async def test_arrows_appear_for_long_lists_and_are_disabled_at_the_ends(svc):
+    for start in range(0, 40, 20):
+        await svc.add_many(ALEX, ",".join(f"item{n:02d}" for n in range(start, start + 20)))
+    first = nav_buttons(await svc.list_items(ALEX, page=1))
+    assert first["prev"].item.disabled and not first["next"].item.disabled
+    last = nav_buttons(await svc.list_items(ALEX, page=2))
+    assert not last["prev"].item.disabled and last["next"].item.disabled
 
 
 async def test_clear_button_only_appears_when_something_is_purchased(svc):
@@ -329,7 +340,9 @@ async def test_us_g5_clear_asks_first_and_names_the_count(ctx, svc):
 async def test_us_g5_confirm_deletes_only_after_yes(ctx, svc):
     _, kwargs = await start_clear(ctx, svc)
     inter = await press_confirm(ctx, kwargs["view"], "yes")
-    assert inter.response.edits[0]["content"] == "Cleared 2 purchased items."
+    (edit,) = inter.response.edits
+    assert edit["embed"].description == "Cleared 2 purchased items."
+    assert edit["content"] is None and edit["view"] is None
     page = await svc.list_items(ALEX, "all")
     assert page.total == 1 and page.items[0].status == "needed"
 

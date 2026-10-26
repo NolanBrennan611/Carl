@@ -138,6 +138,8 @@ Carl/
 - Item options accept an autocomplete ID **or typed text**: the service's `resolve()` matches by name, so `/grocery check item:milk` works without picking a suggestion.
 - The multi-select also works in the purchased view to put items back (`uncheck` mode).
 - Clearing re-checks the confirmed count (`expected_count`), so a list that changed in between is never wiped.
+- **UX revision (live list):** `discord_ui/live_list.py` (`LiveList`, owned by `CarlBot.live_list`) keeps one public list message up to date; `responses.respond_brief`/`BRIEF_SECONDS` provide self-deleting confirmations; `share` defaults to true; ◀ ▶ show only for multi-page lists. See discord-commands.md §4.
+- `Database.transaction()` now queues overlapping transactions on an `asyncio.Lock` instead of raising (two people acting at once used to produce "Something went wrong"). Re-entering from the same task still raises.
 
 **Acceptance criteria (P2)**
 - [ ] US-G1…US-G5 pass manually on desktop **and** phone.

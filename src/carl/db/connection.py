@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,27 +19,36 @@ PRAGMAS = (
 
 
 class Database:
-    """Single shared connection. Writes use `transaction()` (BEGIN IMMEDIATE ... COMMIT)."""
+    """Single shared connection. Writes use `transaction()` (BEGIN IMMEDIATE ... COMMIT).
+
+    Everything shares one connection, so two overlapping transactions would tangle together.
+    `transaction()` therefore queues: a second caller waits until the first has committed or
+    rolled back. Re-entering from the task that already holds it is a bug and raises.
+    """
 
     def __init__(self, conn: aiosqlite.Connection) -> None:
         self.conn = conn
-        self._in_tx = False
+        self._lock = asyncio.Lock()
+        self._owner: asyncio.Task | None = None
 
     @asynccontextmanager
     async def transaction(self) -> AsyncIterator[aiosqlite.Connection]:
-        if self._in_tx:
+        task = asyncio.current_task()
+        if task is not None and self._owner is task:
             raise RuntimeError("Nested transactions are not supported")
-        self._in_tx = True
-        await self.conn.execute("BEGIN IMMEDIATE")
-        try:
-            yield self.conn
-        except BaseException:
-            await self.conn.execute("ROLLBACK")
-            raise
-        else:
-            await self.conn.execute("COMMIT")
-        finally:
-            self._in_tx = False
+        async with self._lock:
+            self._owner = task
+            try:
+                await self.conn.execute("BEGIN IMMEDIATE")
+                try:
+                    yield self.conn
+                except BaseException:
+                    await self.conn.execute("ROLLBACK")
+                    raise
+                else:
+                    await self.conn.execute("COMMIT")
+            finally:
+                self._owner = None
 
     async def close(self) -> None:
         await self.conn.close()

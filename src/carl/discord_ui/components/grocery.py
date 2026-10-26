@@ -49,14 +49,17 @@ def build_list_view(pg: GroceryPage) -> discord.ui.View:
     options = select_options(pg, mode)
     if options:
         view.add_item(GroceryItemSelect(mode, pg.view, pg.category, pg.page, options=options))
-    view.add_item(
-        GroceryNavButton("prev", pg.view, pg.category, pg.page, label="◀", disabled=pg.page <= 1)
-    )
-    view.add_item(
-        GroceryNavButton(
-            "next", pg.view, pg.category, pg.page, label="▶", disabled=pg.page >= pg.pages
+    if pg.pages > 1:  # arrows only matter when there is somewhere to go
+        view.add_item(
+            GroceryNavButton(
+                "prev", pg.view, pg.category, pg.page, label="◀", disabled=pg.page <= 1
+            )
         )
-    )
+        view.add_item(
+            GroceryNavButton(
+                "next", pg.view, pg.category, pg.page, label="▶", disabled=pg.page >= pg.pages
+            )
+        )
     view.add_item(GroceryNavButton("ref", pg.view, pg.category, pg.page, label="↻"))
     if pg.view == "needed":
         toggle = f"Show purchased ({pg.purchased_count})"
@@ -175,6 +178,8 @@ class GroceryItemSelect(
             await ctx.grocery_service.uncheck_many(actor, chosen)
         embed, new_view = await render_list(ctx, actor, self.list_view, self.category, self.page)
         await interaction.response.edit_message(embed=embed, view=new_view)
+        # If the live list is a different message, bring it up to date too.
+        await interaction.client.live_list.refresh_after(interaction)  # type: ignore[attr-defined]
 
 
 # ---- clear purchased (with confirmation)
@@ -226,6 +231,10 @@ async def _confirm_clear(interaction: discord.Interaction, actor: Actor, expecte
     return f"Cleared {cleared} purchased {'item' if cleared == 1 else 'items'}."
 
 
-register_confirm_handler(CLEAR_ACTION, _confirm_clear)
+async def _after_clear(interaction: discord.Interaction) -> None:
+    await interaction.client.live_list.refresh_after(interaction)  # type: ignore[attr-defined]
+
+
+register_confirm_handler(CLEAR_ACTION, _confirm_clear, after=_after_clear)
 
 DYNAMIC_ITEMS = (GroceryNavButton, GroceryItemSelect, GroceryClearAsk)

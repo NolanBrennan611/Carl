@@ -10,7 +10,7 @@ All commands are **guild commands** registered only in `CARL_GUILD_ID`, with `co
 1. **Four top-level groups:** `/grocery`, `/todo`, `/bill`, `/carl`. Verbs are consistent across groups: `add`, `list`, `edit`, `remove`/`delete`, `done`/`check`.
 2. **Pick, don't type IDs.** Every option that refers to an existing record uses **autocomplete**. Its suggestion `value` is the record ID as a string, its `name` is human-readable. The command handler re-validates the ID against the user's scope (autocomplete values can be forged).
 3. **Private by default.** All replies are **ephemeral** unless stated. Bill content never appears in a public message except in the designated reminder channel.
-4. **Phone-first lists.** Lists are embeds with a multi-select for bulk actions and ◀ ▶ buttons. No typing needed after the first command.
+4. **Phone-first lists.** Lists are embeds with a multi-select for bulk actions and ◀ ▶ buttons (only when there is more than one page). No typing needed after the first command.
 5. **Destructive = confirm.** Bulk or irreversible deletes use a Confirm/Cancel button pair that only the invoking user can press, valid for 2 minutes.
 6. **Components survive restarts.** All buttons and selects are `discord.ui.DynamicItem`s whose `custom_id` encodes everything needed (see §8).
 7. **Terminology:** "item" (grocery), "task" (to-do), "bill" (definition), "payment"/"due date" (occurrence), "household" (shared), "personal" (only you).
@@ -53,7 +53,7 @@ Actor resolution (`discord_ui/auth.py`): `interaction.guild_id == CARL_GUILD_ID`
 |---|---|---|
 | `add` | `item`✱ str ≤100 · `quantity` number 0.01–9999 · `unit` str ≤20 (autocomplete: lb, oz, kg, g, gal, l, ml, dozen, pack, bag, box, can, bottle, bunch, ct) · `category` choice (11 categories) · `note` str ≤300 | Adds or merges per FR-G-04. Category inferred if omitted. |
 | `addmany` | `items`✱ str ≤1000, comma- or newline-separated, max 20 | Each entry parsed as `[qty] [unit] name`, e.g. `2 lb apples`, `milk`, `3 cans tomatoes`. Reply lists Added / Merged / Rejected per entry. |
-| `list` | `view` choice: `needed` (default), `purchased`, `all` · `category` choice · `share` bool (default false) | Embed grouped by category. `share:true` posts publicly in the current channel. |
+| `list` | `view` choice: `needed` (default), `purchased`, `all` · `category` choice · `share` bool (**default true**) | Embed grouped by category. Shared (default): posted publicly in the current channel and becomes the **live list** (below). `share:false`: a private list that is not kept up to date. |
 | `check` | `item`✱ autocomplete (needed items) | Mark purchased |
 | `uncheck` | `item`✱ autocomplete (purchased items) | Back to needed; merges if a needed duplicate exists |
 | `edit` | `item`✱ autocomplete (all) · `name` · `quantity` · `unit` · `category` · `note` · `clear` choice: `note`, `quantity`, `unit` | Only provided fields change. If the edit collides with another needed item's key → Conflict error suggesting removal. |
@@ -76,9 +76,13 @@ Actor resolution (`discord_ui/auth.py`): `interaction.guild_id == CARL_GUILD_ID`
 …
 Page 1/1 · Updated 2:14 PM                      (footer, local time)
 [Select: ✔ Check off items… (multi, up to 25)]
-[◀] [▶] [Show purchased (4)] [Clear purchased…] [↻]
+[◀] [▶] [Show purchased (4)] [Clear purchased…] [↻]     (◀ ▶ appear only when there is more than one page)
 ```
 Item lines show added-by only in `view:all` (`— added by @Name`) to keep the phone view short.
+
+**Live list.** A list posted with `share:true` is remembered (channel id, message id, and its view/category in `app_state` key `grocery_live_list`). Whenever the list changes (add, addmany, check, uncheck, edit, remove, the tick-off menu, confirmed clear) Carl edits that message in place, **after** answering the user so the 3-second response limit is never at risk. Posting `/grocery list` again deletes the previous live message and replaces it, so there is only ever one; a private list (`share:false`) never replaces it. Clicking the live message itself updates it directly (no second edit). If the stored message is gone or can't be edited (404/403) it is forgotten with a logged warning; a temporary Discord error keeps it and logs a warning. None of this can make a user's command fail. A refresh re-renders the remembered view (page 1), so a user who toggled the live message to "purchased" sees it return to the remembered view when someone else changes the list.
+
+**Short-lived replies.** Success replies for `add`, `addmany`, `check`, `uncheck`, `edit`, `remove` and the confirmed `clear` are small private (ephemeral) embeds that delete themselves after `BRIEF_SECONDS` (10 s, one constant in `responses.py`; must stay far below Discord's 15-minute interaction limit). Error replies, `addmany` replies that include rejected entries, the clear prompt, "Cancelled." and lists are not auto-deleted. Restarting the bot during the 10 seconds can leave one confirmation behind (harmless).
 
 ## 5. `/todo`
 

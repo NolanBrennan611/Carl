@@ -16,6 +16,7 @@ from carl.discord_ui.cogs.grocery import build_grocery_group
 from carl.discord_ui.command_sync import sync_if_changed
 from carl.discord_ui.components.confirm import ConfirmButton
 from carl.discord_ui.components.grocery import DYNAMIC_ITEMS as GROCERY_ITEMS
+from carl.discord_ui.live_list import LiveList
 from carl.discord_ui.responses import respond
 from carl.domain import timeutil
 from carl.domain.errors import CarlError
@@ -66,6 +67,7 @@ class CarlBot(discord.Client):
         super().__init__(intents=build_intents())
         self.ctx = ctx
         self.tree = CarlTree(self)
+        self.live_list = LiveList(ctx, self.get_partial_messageable)
         self.started_at = ctx.clock.now()
 
     async def setup_hook(self) -> None:

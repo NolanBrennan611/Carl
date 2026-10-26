@@ -6,6 +6,11 @@ import discord
 
 NO_MENTIONS = discord.AllowedMentions.none()
 MAX_MESSAGE = 2000
+MAX_EMBED_TEXT = 4000
+
+# How long a success confirmation stays visible before it deletes itself. Must stay well
+# under Discord's 15-minute interaction limit. Error replies are never auto-deleted.
+BRIEF_SECONDS = 10.0
 
 
 def safe(text: str) -> str:
@@ -15,6 +20,11 @@ def safe(text: str) -> str:
 
 def clip(text: str, limit: int = MAX_MESSAGE) -> str:
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
+
+def summary_embed(text: str) -> discord.Embed:
+    """A small embed holding a short confirmation."""
+    return discord.Embed(description=clip(text, MAX_EMBED_TEXT), color=discord.Color.green())
 
 
 async def respond(
@@ -27,4 +37,21 @@ async def respond(
     else:
         await interaction.response.send_message(
             message, ephemeral=ephemeral, allowed_mentions=NO_MENTIONS
+        )
+
+
+async def respond_brief(
+    interaction: discord.Interaction, text: str, *, delay: float | None = None
+) -> None:
+    """A private confirmation embed that deletes itself after `delay` seconds."""
+    delay = BRIEF_SECONDS if delay is None else delay
+    embed = summary_embed(text)
+    if interaction.response.is_done():
+        sent = await interaction.followup.send(
+            embed=embed, ephemeral=True, allowed_mentions=NO_MENTIONS, wait=True
+        )
+        await sent.delete(delay=delay)  # schedules the delete in the background
+    else:
+        await interaction.response.send_message(
+            embed=embed, ephemeral=True, allowed_mentions=NO_MENTIONS, delete_after=delay
         )

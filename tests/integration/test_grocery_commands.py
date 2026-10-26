@@ -14,13 +14,14 @@ from tests.stubs import make_interaction
 
 
 @pytest.fixture
-def run(ctx):
+def run(ctx, discord_fake):
     """run('add', item='milk') -> the stub interaction after the handler ran."""
-    group = build_grocery_group(SimpleNamespace(ctx=ctx))
+    bot = SimpleNamespace(ctx=ctx, live_list=discord_fake.live_list(ctx))
+    group = build_grocery_group(bot)
     commands = {c.name: c for c in group.commands}
 
     async def go(name, **options):
-        inter = make_interaction(ctx)
+        inter = make_interaction(ctx, discord_fake=discord_fake)
         inter.extras["actor"] = resolve_actor(inter.guild_id, inter.user, ctx.settings)
         await commands[name].callback(inter, **options)
         return inter
@@ -33,7 +34,9 @@ def choice(value):
 
 
 def last_text(inter):
-    return (inter.response.sent or inter.followup.sent)[0][0]
+    """The reply's text: plain content, or the description of a confirmation embed."""
+    content, kwargs = (inter.response.sent or inter.followup.sent)[0]
+    return content if content is not None else kwargs["embed"].description
 
 
 async def test_us_g1_add_a_single_item(run):
@@ -75,15 +78,15 @@ async def test_addmany_reports_each_outcome(run):
     )
 
 
-async def test_list_is_private_by_default_and_public_on_request(run):
+async def test_list_is_public_by_default_and_private_on_request(run):
     await run("addmany", items="milk, eggs")
-    private = await run("list")
-    (_, kwargs) = private.response.sent[0]
-    assert kwargs["ephemeral"] is True and "2 needed" in kwargs["embed"].title
+    shared = await run("list")
+    (_, kwargs) = shared.response.sent[0]
+    assert kwargs["ephemeral"] is False and "2 needed" in kwargs["embed"].title
     assert kwargs["view"].is_finished()
 
-    shared = await run("list", share=True)
-    assert shared.response.sent[0][1]["ephemeral"] is False
+    private = await run("list", share=False)
+    assert private.response.sent[0][1]["ephemeral"] is True
 
 
 async def test_list_filters(run):

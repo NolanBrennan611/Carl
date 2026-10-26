@@ -67,6 +67,8 @@ Priority: **M** = must (MVP), **S** = should (MVP if cheap), **L** = later phase
 | FR-G-10 | Clear all purchased items, but only after a confirmation button that names the number of items. | M |
 | FR-G-11 | List is shared by all Members. Any Member may add, edit, check, uncheck, remove, or clear. | M |
 | FR-G-12 | Separate lists per store. | L |
+| FR-G-13 | **Live list:** a publicly posted list (`/grocery list`, shared by default) is kept up to date by editing that one message after every change; posting a new one replaces the old one. Best effort: a missing message is forgotten, never an error for the user. | M |
+| FR-G-14 | Success confirmations are private embeds that delete themselves after about 10 seconds; errors are never auto-deleted. | M |
 
 ### 4.3 To-do list (FR-T)
 

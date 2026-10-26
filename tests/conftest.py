@@ -13,7 +13,9 @@ from tests.fakes import FakeClock
 GUILD_ID = 1000
 ROLE_ID = 2000
 ADMIN_ROLE_ID = 3000
-TOKEN = "MTIzNDU2Nzg5MDEyMzQ1Njc4" + "." + "GabcDE" + "." + "abcdefghijklmnopqrstuvwxyz0"  # fake, split on purpose
+TOKEN = (
+    "MTIzNDU2Nzg5MDEyMzQ1Njc4" + "." + "GabcDE" + "." + "abcdefghijklmnopqrstuvwxyz0"
+)  # fake, split on purpose
 
 
 def make_env(data_dir: Path, **overrides: str) -> dict[str, str]:
@@ -52,3 +54,10 @@ async def ctx(db: Database, settings: Settings, clock: FakeClock) -> AppContext:
     context = build_context(settings, clock, db)
     await context.settings_service.seed(settings)
     return context
+
+
+@pytest.fixture
+def discord_fake():
+    from tests.stubs import FakeDiscord
+
+    return FakeDiscord()
