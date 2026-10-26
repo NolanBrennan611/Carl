@@ -1,0 +1,14 @@
+# Basic compose file for Phase 1. Phase 5 adds the hardened settings from
+# docs/security-and-operations.md section 10.1 (read-only rootfs, limits, healthcheck).
+services:
+  carl:
+    build: .
+    image: carl:local
+    container_name: carl
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CARL_DATA_DIR: /data
+    volumes:
+      - ./data:/data
+    stop_grace_period: 30s
