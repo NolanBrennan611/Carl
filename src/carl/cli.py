@@ -171,7 +171,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    load_dotenv()  # reads .env when present; real environment variables win
+    # Read ./.env from the current directory only (no searching parent folders). Real
+    # environment variables win, and a missing file is fine (Docker injects env vars).
+    load_dotenv(Path.cwd() / ".env")
     parser = build_parser()
     args = parser.parse_args(argv)
     if not getattr(args, "func", None):

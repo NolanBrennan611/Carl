@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 
 def format_date(d: date) -> str:
@@ -13,6 +13,11 @@ def format_date(d: date) -> str:
 def format_date_short(d: date) -> str:
     """'Sun Nov 1'."""
     return f"{d.strftime('%a %b')} {d.day}"
+
+
+def format_clock(dt: datetime) -> str:
+    """'2:14 PM' for a (local) datetime."""
+    return dt.strftime("%I:%M %p").lstrip("0")
 
 
 def relative_days(d: date, today: date) -> str:

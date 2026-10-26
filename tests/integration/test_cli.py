@@ -26,7 +26,12 @@ def clean_env(tmp_path, monkeypatch):
     for key in list(__import__("os").environ):
         if key.startswith(("CARL_", "DISCORD_")):
             monkeypatch.delenv(key)
-    monkeypatch.chdir(tmp_path)  # so a developer's real .env is never loaded
+    monkeypatch.chdir(tmp_path)  # the CLI only reads ./.env, so a real .env is never loaded
+
+    async def forbidden(*_args, **_kwargs):
+        raise AssertionError("tests must never start the real bot")
+
+    monkeypatch.setattr(cli, "_run_bot", forbidden)
     return tmp_path
 
 

@@ -132,6 +132,13 @@ Carl/
 | 2.4 | Components: grocery list view (select check, pagination, show purchased, clear → confirm), `components/confirm.py`, `components/pagination.py` | | custom_id build/parse round-trip; confirm expiry and wrong-user rejection (pure functions) |
 | 2.5 | `embeds.py` grocery list renderer | | ≤ 4096 chars with 25 long items; grouping order |
 
+**Implementation notes (as built).** Same behavior as specified; file layout differs slightly from §1:
+- `domain/paging.py` holds page arithmetic (instead of `components/pagination.py`); the Previous/Next/Refresh/toggle buttons are `GroceryNavButton` in `components/grocery.py`.
+- Added `discord_ui/responses.py` (respond/safe/clip), `discord_ui/grocery_messages.py` (reply text and list rendering), `components/ids.py` (custom_id helpers) and `components/base.py` (`guard`, `autocomplete_actor`).
+- Item options accept an autocomplete ID **or typed text**: the service's `resolve()` matches by name, so `/grocery check item:milk` works without picking a suggestion.
+- The multi-select also works in the purchased view to put items back (`uncheck` mode).
+- Clearing re-checks the confirmed count (`expected_count`), so a list that changed in between is never wiped.
+
 **Acceptance criteria (P2)**
 - [ ] US-G1…US-G5 pass manually on desktop **and** phone.
 - [ ] Integration tests cover FR-G-01..11; full suite green.

@@ -58,3 +58,12 @@ def test_lock_can_be_reacquired_after_release(tmp_path):
         pass
     with InstanceLock(tmp_path / "carl.lock"):
         pass
+
+
+def test_aiosqlite_never_logs_sql_values_even_at_debug():
+    from carl.logging_setup import quiet_noisy_loggers
+
+    logging.getLogger("aiosqlite").setLevel(logging.DEBUG)
+    quiet_noisy_loggers("DEBUG")
+    assert logging.getLogger("aiosqlite").level == logging.WARNING
+    assert not logging.getLogger("aiosqlite").isEnabledFor(logging.DEBUG)

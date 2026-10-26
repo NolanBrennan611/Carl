@@ -28,8 +28,17 @@ def help_embed() -> discord.Embed:
         inline=False,
     )
     e.add_field(
+        name="Grocery list",
+        value=(
+            "`/grocery add` one item, `/grocery addmany milk, 2 lb apples, eggs` several\n"
+            "`/grocery list` shows the list with tick-off menus and buttons\n"
+            "`/grocery check`, `uncheck`, `edit`, `remove`, `clear`"
+        ),
+        inline=False,
+    )
+    e.add_field(
         name="Coming soon",
-        value="`/grocery`, `/todo`, `/bill`",
+        value="`/todo`, `/bill`",
         inline=False,
     )
     return e

@@ -36,7 +36,15 @@ Precedence on conflict: requirements (behavior) → reminder-system / database-d
 - **Money:** integer minor units + ISO currency; parse with `Decimal`.
 - **Errors:** raise `CarlError` subclasses in services; `discord_ui/errors.py` maps them to messages from `discord-commands.md` §9.
 - **Privacy:** replies ephemeral by default; `allowed_mentions=none`; never log names, titles, amounts, notes, or user-typed values (IDs and event names only).
-- **Components:** `DynamicItem` with `carl:v1:…` custom_ids; re-check authorization and scope on every click.
+- **Components:** `DynamicItem` with `carl:v1:…` custom_ids; re-check authorization and scope on every click. Hard-won rules (each one was a real bug in Phase 2):
+  - Wrap every callback in `components.base.guard(...)`. discord.py does not run the command tree's access check or our error handling for component clicks.
+  - Call `view.stop()` on every View you send (see `components.grocery.finish`). A live view *and* a registered DynamicItem would both handle one click.
+  - Never name an attribute `view` on an Item (it's a read-only discord.py property). Use `list_view` etc.
+  - Autocomplete skips the command tree's access check: call `components.base.autocomplete_actor` and return `[]` for non-members.
+  - `app_commands.Range` bounds must be the same type (`Range[float, 0.01, 9999.0]`, not `9999`).
+  - Reply with `responses.respond` (ephemeral, `allowed_mentions=none`) and wrap user text in `responses.safe`.
+- **Logging:** `aiosqlite` logs SQL *values* at DEBUG; `logging_setup.quiet_noisy_loggers` keeps it at WARNING. Don't undo that.
+- **Tests must never start the real bot or read a real `.env`** (the CLI only reads `./.env` from the current directory; `tests/integration/test_cli.py` patches `_run_bot` to fail if called).
 
 ## Commands
 ```bash

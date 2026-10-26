@@ -13,7 +13,9 @@ from carl.db.connection import Database, open_db
 from carl.db.migrate import migrate
 from carl.repositories.app_state_repo import AppStateRepo
 from carl.repositories.audit_repo import AuditRepo
+from carl.repositories.grocery_repo import GroceryRepo
 from carl.repositories.settings_repo import SettingsRepo
+from carl.services.grocery_service import GroceryService
 from carl.services.settings_service import SettingsService
 
 
@@ -29,6 +31,7 @@ class AppContext:
     app_state: AppStateRepo
     audit: AuditRepo
     settings_service: SettingsService
+    grocery_service: GroceryService
 
     async def close(self) -> None:
         await self.db.close()
@@ -45,6 +48,7 @@ def build_context(settings: Settings, clock: Clock, db: Database) -> AppContext:
         app_state=app_state,
         audit=audit,
         settings_service=SettingsService(db, clock, settings_repo, audit),
+        grocery_service=GroceryService(db, clock, GroceryRepo(db), audit),
     )
 
 

@@ -41,6 +41,16 @@ class KeyValueFormatter(logging.Formatter):
         return line
 
 
+def quiet_noisy_loggers(level: str = "INFO") -> None:
+    """Libraries that would write household data into the logs, whatever the log level.
+
+    aiosqlite logs every SQL statement *with its bound values* at DEBUG, which would include
+    item names, task titles, bill names, amounts and notes.
+    """
+    logging.getLogger("aiosqlite").setLevel(logging.WARNING)
+    logging.getLogger("discord").setLevel("INFO" if level == "DEBUG" else "WARNING")
+
+
 def setup_logging(level: str = "INFO") -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(KeyValueFormatter())
@@ -49,4 +59,4 @@ def setup_logging(level: str = "INFO") -> None:
     root = logging.getLogger()
     root.handlers[:] = [handler]
     root.setLevel(level)
-    logging.getLogger("discord").setLevel("INFO" if level == "DEBUG" else "WARNING")
+    quiet_noisy_loggers(level)

@@ -3,9 +3,20 @@
 A private Discord bot for one household: shared grocery list, to-dos, and bill reminders.
 Design docs live in [docs/](docs/); implementation rules for contributors are in [CLAUDE.md](CLAUDE.md).
 
-**Status:** Phase 1 (foundation) is implemented: configuration, database and migrations,
-time/date/recurrence libraries, household settings, and the `/carl` commands. Grocery, to-do and
-bill features arrive in later phases (see [docs/implementation-plan.md](docs/implementation-plan.md)).
+**Status:** Phases 1 and 2 are implemented: configuration, database and migrations,
+time/date/recurrence libraries, household settings, the `/carl` commands, and the shared grocery
+list (`/grocery`). To-dos and bill reminders arrive in later phases (see
+[docs/implementation-plan.md](docs/implementation-plan.md)).
+
+## Using the grocery list
+
+- `/grocery add item:oat milk quantity:2 unit:cartons`: one item. Duplicates merge (adding apples
+  twice sums the quantities; nothing is silently dropped).
+- `/grocery addmany items:milk, 2 lb apples, 3 cans tomatoes`: up to 20 at once.
+- `/grocery list`: your list by aisle, with a menu to tick items off and buttons to page,
+  refresh, see purchased items, or clear them. Add `share:true` to post it for everyone.
+- `/grocery check`, `uncheck`, `edit`, `remove`: pick the item from the suggestions or type its name.
+- `/grocery clear`: removes checked-off items after you confirm.
 
 ## One-time Discord setup
 

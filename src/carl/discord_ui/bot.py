@@ -12,7 +12,11 @@ from carl.app import AppContext
 from carl.discord_ui import errors
 from carl.discord_ui.auth import resolve_actor
 from carl.discord_ui.cogs.admin import build_carl_group
+from carl.discord_ui.cogs.grocery import build_grocery_group
 from carl.discord_ui.command_sync import sync_if_changed
+from carl.discord_ui.components.confirm import ConfirmButton
+from carl.discord_ui.components.grocery import DYNAMIC_ITEMS as GROCERY_ITEMS
+from carl.discord_ui.responses import respond
 from carl.domain import timeutil
 from carl.domain.errors import CarlError
 
@@ -28,14 +32,6 @@ def build_intents() -> discord.Intents:
 
 def foreign_guild_ids(guild_ids: Iterable[int], home_id: int) -> list[int]:
     return [g for g in guild_ids if g != home_id]
-
-
-async def respond(interaction: discord.Interaction, message: str) -> None:
-    """Send an ephemeral text reply whether or not the interaction was already answered."""
-    if interaction.response.is_done():
-        await interaction.followup.send(message, ephemeral=True)
-    else:
-        await interaction.response.send_message(message, ephemeral=True)
 
 
 class CarlTree(app_commands.CommandTree):
@@ -74,7 +70,9 @@ class CarlBot(discord.Client):
 
     async def setup_hook(self) -> None:
         guild = discord.Object(id=self.ctx.settings.guild_id)
+        self.add_dynamic_items(ConfirmButton, *GROCERY_ITEMS)
         self.tree.add_command(build_carl_group(self), guild=guild)
+        self.tree.add_command(build_grocery_group(self), guild=guild)
         now = timeutil.to_db_instant(timeutil.utc_now(self.ctx.clock))
         await sync_if_changed(self.tree, guild, self.ctx.app_state, now)
 

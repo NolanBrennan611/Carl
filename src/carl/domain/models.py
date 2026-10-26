@@ -15,6 +15,25 @@ class Actor:
 
 
 @dataclass(frozen=True)
+class GroceryItem:
+    id: int
+    guild_id: int
+    name: str
+    name_normalized: str
+    quantity: float | None
+    unit: str | None
+    unit_normalized: str
+    category: str
+    note: str | None
+    status: str  # 'needed' | 'purchased'
+    added_by_user_id: int
+    purchased_by_user_id: int | None
+    purchased_at: str | None
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
 class GuildSettings:
     guild_id: int
     timezone: str

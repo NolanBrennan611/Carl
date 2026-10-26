@@ -6,12 +6,14 @@ import discord
 from discord import app_commands
 
 from carl.discord_ui.auth import NO_ACCESS
-from carl.discord_ui.bot import CarlBot, CarlTree, respond
+from carl.discord_ui.bot import CarlBot, CarlTree
 from carl.discord_ui.command_sync import STATE_KEY, command_hash, sync_if_changed
+from carl.discord_ui.responses import NO_MENTIONS, respond
 from carl.domain.errors import Forbidden, ValidationError
 from tests.conftest import ADMIN_ROLE_ID, GUILD_ID, ROLE_ID
 
 CMD = SimpleNamespace(name="stub")
+PRIVATE = {"ephemeral": True, "allowed_mentions": NO_MENTIONS}  # replies are private, ping nobody
 
 
 class StubResponse:
@@ -50,7 +52,7 @@ async def test_outsider_is_blocked_before_any_command_runs(ctx):
     tree = CarlBot(ctx).tree
     inter = interaction([999])
     assert await tree.interaction_check(inter) is False
-    assert inter.response.sent == [(NO_ACCESS, {"ephemeral": True})]
+    assert inter.response.sent == [(NO_ACCESS, PRIVATE)]
     assert "actor" not in inter.extras
 
 
@@ -71,7 +73,7 @@ async def test_errors_become_ephemeral_messages(ctx):
     tree = CarlBot(ctx).tree
     inter = interaction([ROLE_ID])
     await tree.on_error(inter, app_commands.CommandInvokeError(CMD, ValidationError("Bad input.")))
-    assert inter.response.sent == [("Bad input.", {"ephemeral": True})]
+    assert inter.response.sent == [("Bad input.", PRIVATE)]
 
     inter = interaction([ROLE_ID])
     await tree.on_error(inter, app_commands.CommandInvokeError(CMD, Forbidden("Admins only.")))
@@ -87,7 +89,7 @@ async def test_respond_uses_followup_when_already_answered():
     inter = interaction([])
     inter.response.done = True
     await respond(inter, "hello")
-    assert inter.followup.sent == [("hello", {"ephemeral": True})]
+    assert inter.followup.sent == [("hello", PRIVATE)]
     assert inter.response.sent == []
 
 
